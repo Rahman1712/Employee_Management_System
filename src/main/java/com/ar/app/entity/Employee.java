@@ -3,6 +3,7 @@ package com.ar.app.entity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -36,7 +37,7 @@ public class Employee {
     private LocalDate joiningDate;
     private BigDecimal yearlyBonusPercentage;
 
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "reporting_manager_id")
     private Employee reportingManager;
 }
