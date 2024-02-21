@@ -1,6 +1,5 @@
 package com.ar.app.entity;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import jakarta.persistence.CascadeType;
@@ -11,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -18,6 +18,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class Employee {
 
 	@Id
@@ -26,7 +27,7 @@ public class Employee {
 
     private String name;
     private LocalDate dateOfBirth;
-    private BigDecimal salary;
+    private Double salary;
 
     @ManyToOne
     @JoinColumn(name = "department_id")
@@ -35,7 +36,7 @@ public class Employee {
     private String address;
     private String role;
     private LocalDate joiningDate;
-    private BigDecimal yearlyBonusPercentage;
+    private Float yearlyBonusPercentage;
 
     @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "reporting_manager_id")
