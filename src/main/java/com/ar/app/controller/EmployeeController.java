@@ -21,6 +21,8 @@ import com.ar.app.dto.EmployeeDTO;
 import com.ar.app.dto.EmployeeRequest;
 import com.ar.app.service.EmployeeService;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/employee")
 public class EmployeeController {
@@ -29,7 +31,7 @@ public class EmployeeController {
     private EmployeeService employeeService;
 	
     @PostMapping
-    public ResponseEntity<EmployeeDTO> createEmployee(@RequestBody EmployeeRequest employeeRequest) {
+    public ResponseEntity<EmployeeDTO> createEmployee(@RequestBody @Valid EmployeeRequest employeeRequest) {
     	EmployeeDTO createdEmployee = employeeService.createEmployee(employeeRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdEmployee);
     }
@@ -50,8 +52,19 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.getEmployeesByPage(pageNum));
     }
     
-    @PutMapping("/{id}")
-    public ResponseEntity<EmployeeDTO> updateEmployeeById(@PathVariable Long id, @RequestBody EmployeeRequest request) {
+    @GetMapping("/employees-info-lookup")
+    public ResponseEntity<Map<String, Object>> getEmployeesInfos(
+            @RequestParam(value = "lookup", defaultValue = "false") boolean lookup, @RequestParam(defaultValue = "1") int pageNum) {
+        if (lookup) {
+            Map<String, Object> allEmployeeInfos = employeeService.getAllEmployeeInfos(pageNum); 
+            return ResponseEntity.ok(allEmployeeInfos);
+        } else {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+    
+	@PutMapping("/{id}")
+    public ResponseEntity<EmployeeDTO> updateEmployeeById(@PathVariable Long id, @RequestBody @Valid EmployeeRequest request) {
     	EmployeeDTO updatedEmployee = employeeService.updateEmployeeById(id, request);
         return ResponseEntity.ok(updatedEmployee);
     }
@@ -69,7 +82,7 @@ public class EmployeeController {
     }
     
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteEmployeeById(Long id) {
+    public ResponseEntity<Void> deleteEmployeeById(@PathVariable Long id) {
     	employeeService.deleteEmployeeById(id);
         return ResponseEntity.noContent().build();
     }

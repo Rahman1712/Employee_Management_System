@@ -1,13 +1,15 @@
 package com.ar.app.util;
 
 import com.ar.app.dto.DepartmentDTO;
+import com.ar.app.dto.DepartmentInfo;
 import com.ar.app.dto.EmployeeDTO;
+import com.ar.app.dto.EmployeeInfo;
 import com.ar.app.entity.Department;
 import com.ar.app.entity.Employee;
 
 public class AppUtils {
 	
-	public static DepartmentDTO DepartmentToDto(Department department) {
+	public static DepartmentDTO departmentToDto(Department department) {
         DepartmentDTO departmentDTO = DepartmentDTO.builder()
 	        .id(department.getId())
 	        .name(department.getName())
@@ -15,7 +17,7 @@ public class AppUtils {
 	        .build();
         
         if(department.getDepartmentHead() != null) {
-        	EmployeeDTO departmentHead = EmployeeDTO.builder()
+        	EmployeeInfo departmentHead = EmployeeInfo.builder()
             		.id(department.getDepartmentHead().getId())
             		.name(department.getDepartmentHead().getName())
             		.build();
@@ -25,7 +27,7 @@ public class AppUtils {
         return departmentDTO;
     }
 	
-	public static EmployeeDTO EmployeeToDto(Employee employee) {
+	public static EmployeeDTO employeeToDto(Employee employee) {
         EmployeeDTO employeeDTO = EmployeeDTO.builder()
         		.id(employee.getId())
         		.name(employee.getName())
@@ -37,7 +39,7 @@ public class AppUtils {
     			.yearlyBonusPercentage(employee.getYearlyBonusPercentage())
         		.build();
         if(employee.getDepartment() != null ) {
-        	DepartmentDTO department = DepartmentDTO.builder()
+        	DepartmentInfo department = DepartmentInfo.builder()
         		.id(employee.getDepartment().getId())
         		.name(employee.getDepartment().getName())
         		.build();
@@ -45,7 +47,7 @@ public class AppUtils {
         }
         
         if(employee.getReportingManager() != null ) {
-        	EmployeeDTO reportingManager = EmployeeDTO.builder()
+        	EmployeeInfo reportingManager = EmployeeInfo.builder()
         		.id(employee.getReportingManager().getId())
         		.name(employee.getReportingManager().getName())
         		.build();
@@ -54,4 +56,12 @@ public class AppUtils {
         
         return employeeDTO;
     }
+	
+	public static EmployeeInfo employeeToInfo(Employee employee) {
+		return EmployeeInfo.builder()
+						   .id(employee.getId())
+						   .name(employee.getName())
+						   .build();
+	}
+	
 }

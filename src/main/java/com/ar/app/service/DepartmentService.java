@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import com.ar.app.dto.DepartmentDTO;
 import com.ar.app.dto.DepartmentRequest;
+import com.ar.app.dto.EmployeeInfo;
 import com.ar.app.entity.Department;
 import com.ar.app.entity.Employee;
 import com.ar.app.exception.DepartmentException;
@@ -34,23 +36,26 @@ public class DepartmentService {
     
     private static final int PAGE_LIMIT = 20;
     
+//  Get Department By Id -----------------------------------------
     public DepartmentDTO getDepartmentById(Long id) {
     	Department department = departmentRepository.findById(id)
     			.orElseThrow(() -> new DepartmentException(
                 		"Department not Found with ID: " + id,
                 		HttpStatus.NOT_FOUND));
     	
-    	return AppUtils.DepartmentToDto(department);
+    	return AppUtils.departmentToDto(department);
     }
     
+//  Get All Department -----------------------------------------
     public List<DepartmentDTO> getAllDepartments() {
     	List<DepartmentDTO> departments = departmentRepository.findAll().stream()
-    			.map(AppUtils::DepartmentToDto)
+    			.map(AppUtils::departmentToDto)
     			.collect(Collectors.toList());
     	
     	return departments;
     }
     
+//  Get Department With Pagination -----------------------------------------
 	public Map<String, Object> getDepartmentsByPage(int pageNum) {
 		Pageable pageable = PageRequest.of(pageNum - 1, PAGE_LIMIT); 
 		Page<Department> page = departmentRepository.findAll(pageable);
@@ -58,7 +63,7 @@ public class DepartmentService {
 		long totalItems = page.getTotalElements();
 		int totalPages = page.getTotalPages();
 		List<DepartmentDTO> departments = page.getContent().stream()
-				.map(AppUtils::DepartmentToDto).collect(Collectors.toList());
+				.map(AppUtils::departmentToDto).collect(Collectors.toList());
 
 		Map<String, Object> map = new HashMap<>();
 		map.put("pageNum", pageNum);
@@ -69,6 +74,35 @@ public class DepartmentService {
 		return map;
 	}
 	
+//  Get Department With Employees -----------------------------------------
+	public Map<String, Object> getDepartmentWithEmployees(String expand) {
+		Optional<Department> departmentOptional = departmentRepository.findByName(expand);
+
+		if(departmentOptional.isPresent()) {
+			Department department = departmentOptional.get();
+			
+			List<EmployeeInfo> employees = department.getEmployees()
+					.stream()
+					.map(AppUtils::employeeToInfo)
+					.collect(Collectors.toList());
+
+			Map<String, Object> map = new HashMap<>();
+			map.put("id", department.getId());
+			map.put("name", department.getName());
+			map.put("creationDate", department.getCreationDate());
+			map.put("departmentHead",
+					department.getDepartmentHead() != null ? 
+						AppUtils.employeeToInfo(department.getDepartmentHead()) : 
+							null);
+			map.put("employees", employees);
+			
+			return map;
+		}else {
+			return null;
+		}
+	}
+	
+//  Create Department -----------------------------------------
     public DepartmentDTO createDepartment(DepartmentRequest departmentRequest) {
         
         if (departmentRepository.existsByName(departmentRequest.getName())) {
@@ -91,9 +125,10 @@ public class DepartmentService {
         }
         Department saved = departmentRepository.save(department);
         
-        return AppUtils.DepartmentToDto(saved);
+        return AppUtils.departmentToDto(saved);
     }
     
+//  Update Department By Id -----------------------------------------
     public DepartmentDTO updateDepartmentById(Long id, DepartmentRequest departmentRequest) {
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new DepartmentException("Department not found with ID: " + id , HttpStatus.NOT_FOUND));
@@ -107,7 +142,6 @@ public class DepartmentService {
         department.setName(departmentRequest.getName());
         department.setCreationDate(departmentRequest.getCreationDate());
         
-        // Change the Department
         if(departmentRequest.getDepartmentHeadId() != null) {
     		Employee deptHead = employeeRepository.findById(departmentRequest.getDepartmentHeadId())
     			.orElseThrow(() -> new EmployeeException("Employee not Found with ID: "+departmentRequest.getDepartmentHeadId(),HttpStatus.NOT_FOUND));
@@ -117,15 +151,32 @@ public class DepartmentService {
 
         department = departmentRepository.save(department);
 
-        return AppUtils.DepartmentToDto(department);
+        return AppUtils.departmentToDto(department);
     }
+    
+//  Update Department Head By Id -----------------------------------------
+    public void updateDepartmentHeadById(Long id, Long deptHeadId) {
+    	Department department = departmentRepository.findById(id)
+    			.orElseThrow(() -> new DepartmentException("Department not found with ID: " + id , HttpStatus.NOT_FOUND));
+        
+    	Employee deptHead = employeeRepository.findById(deptHeadId)
+    			.orElseThrow(() -> new EmployeeException("Department Head :  Employee not Found with ID: "+deptHeadId,HttpStatus.NOT_FOUND));
 
+    	departmentRepository.updateDepartmentDepartmentHead(department.getId(), deptHead);
+    }
+    
+//  Delete Department By Id -----------------------------------------
     public void deleteDepartmentById(Long id) {
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new DepartmentException("Department not found with ID: " + id , HttpStatus.NOT_FOUND));
         
+        if (!department.getEmployees().isEmpty()) {
+            throw new DepartmentException(
+            		"Department cannot be deleted because it has associated employees.",
+            		HttpStatus.BAD_REQUEST);
+        }
+        
         departmentRepository.delete(department);
     }
-
 
 }

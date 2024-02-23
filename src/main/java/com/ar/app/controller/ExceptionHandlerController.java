@@ -1,14 +1,14 @@
 package com.ar.app.controller;
 
-import org.springframework.http.HttpHeaders;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import com.ar.app.exception.DepartmentException;
 import com.ar.app.exception.EmployeeException;
@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
 @Slf4j
-public class ExceptionHandlerController extends ResponseEntityExceptionHandler{
+public class ExceptionHandlerController {
 
 	@ExceptionHandler(EmployeeException.class)
     public ResponseEntity<String> handleEmployeeException(EmployeeException ex) {
@@ -33,11 +33,12 @@ public class ExceptionHandlerController extends ResponseEntityExceptionHandler{
         return new ResponseEntity<String>(ex.getMessage(), ex.getStatus()); 
     }
 	
-	@Override
-	protected ResponseEntity<Object> handleHttpRequestMethodNotSupported(HttpRequestMethodNotSupportedException ex,
-			HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-		
-		return new ResponseEntity<Object>("Method "+ex.getMethod()+" Not Allowed : Please change method type.", HttpStatus.METHOD_NOT_ALLOWED); 
-	}
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+         Map<String, String> collect = ex.getBindingResult().getFieldErrors().stream()
+                .collect(Collectors.toMap(FieldError::getField, FieldError::getDefaultMessage));
+         log.error("MethodArgumentNotValidException : {}", ex.getMessage());
+         return new ResponseEntity<Map<String,String>>(collect, HttpStatus.BAD_REQUEST); 
+    }
 	
 }

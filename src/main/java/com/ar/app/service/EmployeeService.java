@@ -1,9 +1,12 @@
 package com.ar.app.service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import com.ar.app.dto.EmployeeDTO;
+import com.ar.app.dto.EmployeeInfo;
 import com.ar.app.dto.EmployeeRequest;
 import com.ar.app.entity.Department;
 import com.ar.app.entity.Employee;
@@ -34,6 +38,7 @@ public class EmployeeService {
     
     private static final int PAGE_LIMIT = 20;
 
+//  Create Employee -----------------------------------------
     public EmployeeDTO createEmployee(EmployeeRequest request) {
     	Employee employee = Employee.builder()
     			.name(request.getName())
@@ -46,11 +51,10 @@ public class EmployeeService {
     			.build();
     	
     	if(request.getReportingManagerId() != null) {
-    		Employee reportingManager = employeeRepository
-    				.findById(request.getReportingManagerId())
+    		Employee reportingManager = employeeRepository.findById(request.getReportingManagerId())
     			.orElseThrow(() -> 
-    			new EmployeeException("Reporting Manager not Found with ID: "+request.getReportingManagerId()
-    			,HttpStatus.NOT_FOUND));
+    				new EmployeeException("Reporting Manager not Found with ID: "+request.getReportingManagerId()
+    				,HttpStatus.NOT_FOUND));
     		
     		employee.setReportingManager(reportingManager);
     	}
@@ -65,36 +69,57 @@ public class EmployeeService {
     	
         Employee savedEmployee = employeeRepository.save(employee);
         
-        return AppUtils.EmployeeToDto(savedEmployee);
+        return AppUtils.employeeToDto(savedEmployee);
     }
     
-    
+//  Get Employee by ID -----------------------------------------
     public EmployeeDTO getEmployeeById(Long id) {
     	Employee employee = employeeRepository.findById(id).orElseThrow(() -> new EmployeeException(
                 		"Employee not Found with ID: " + id,
                 		HttpStatus.NOT_FOUND));
     	
-    	return AppUtils.EmployeeToDto(employee);
+    	return AppUtils.employeeToDto(employee);
     }
     
-    
+//  Get All Employees -----------------------------------------
     public List<EmployeeDTO> getAllEmployees() {
     	List<EmployeeDTO> employeesList = employeeRepository.findAll().stream()
-    			.map(AppUtils::EmployeeToDto)
+    			.map(AppUtils::employeeToDto)
     			.collect(Collectors.toList());
     	return employeesList;
     }
 
-    
+//  Get Employees with Pagination -----------------------------------------
     public Map<String, Object> getEmployeesByPage(int pageNum) {
 		Pageable pageable = PageRequest.of(pageNum - 1, PAGE_LIMIT); 
 		Page<Employee> page = employeeRepository.findAll(pageable);
 		
 		long totalItems = page.getTotalElements();
 		int totalPages = page.getTotalPages();
+		
 		List<EmployeeDTO> employees = page.getContent().stream()
-				.map(AppUtils::EmployeeToDto).collect(Collectors.toList());
+				.map(AppUtils::employeeToDto).collect(Collectors.toList());
+		
+		return getEmployeesMapData(pageNum, totalItems, totalPages, employees);
+	}
+    
+//  Get Employee's Info (Id and Name) with Pagination -------------------------------
+	public Map<String, Object> getAllEmployeeInfos(int pageNum) {
+		Pageable pageable = PageRequest.of(pageNum - 1, PAGE_LIMIT); 
+		Page<Employee> page = employeeRepository.findAll(pageable);
+		
+		long totalItems = page.getTotalElements();
+		int totalPages = page.getTotalPages();
+		List<EmployeeInfo> employeeInfos = page.getContent().stream()
+				.map(AppUtils::employeeToInfo).collect(Collectors.toList());
 
+		return getEmployeesMapData(pageNum, totalItems, totalPages, employeeInfos);
+	}
+	
+//  Map Data--------------------------------------------------
+    private Map<String, Object> getEmployeesMapData(
+    		int pageNum, long totalItems, int totalPages, Object employees) {
+    	
 		Map<String, Object> map = new HashMap<>();
 		map.put("pageNum", pageNum);
 		map.put("totalItems", totalItems);
@@ -104,7 +129,7 @@ public class EmployeeService {
 		return map;
 	}
     
-    
+//  Update Employee by ID -----------------------------------------
     public EmployeeDTO updateEmployeeById(Long id, EmployeeRequest request) {
     	Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeException("Employee not found with ID: " + id , HttpStatus.NOT_FOUND));
@@ -134,10 +159,10 @@ public class EmployeeService {
 
     	Employee savedEmployee = employeeRepository.save(employee);
     	
-        return AppUtils.EmployeeToDto(savedEmployee);
+        return AppUtils.employeeToDto(savedEmployee);
     }
     
-    
+//  Update Employee's Department by ID -----------------------------------------
     public void updateEmployeeDepartmentById(Long id, Long deptId) {
    	 Optional<Employee> employeeOptional = employeeRepository.findById(id);
         if (employeeOptional.isPresent()) {
@@ -156,7 +181,7 @@ public class EmployeeService {
         }
    }
     
-    
+// Update Employee's Reporting Manager by ID ---------------------------------------
    public void updateEmployeeReportManagerById(Long id, Long reportManagerId) {
     	 Optional<Employee> employeeOptional = employeeRepository.findById(id);
          if (employeeOptional.isPresent()) {
@@ -180,14 +205,57 @@ public class EmployeeService {
         	 throw new EmployeeException("Employee not found with ID: " + id , HttpStatus.NOT_FOUND);
          }
     }
-
    
+//  Check is ReportingManager -----------------------------------------
+    private boolean isReportingManager(Employee employee) {
+       return employeeRepository.existsByReportingManager(employee);
+    }
+    
+//  Delete Employee by ID -----------------------------------------
     public void deleteEmployeeById(Long id) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeException("Employee not found with ID: " + id , HttpStatus.NOT_FOUND));
         
+        if (isReportingManager(employee)) {
+            throw new EmployeeException(
+            		"Cannot delete employee because they are set as a reporting manager for other employees.",
+            		HttpStatus.BAD_REQUEST);
+        }
+        
         employeeRepository.delete(employee);
     }
     
+    public Map<Long, List<Long>> getReportings(Long userId) {
+        // Retrieve the employee by ID
+        Employee employee = employeeRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + userId));
+
+        // Initialize a map to store reporting managers and their employees
+        Map<Long, List<Long>> managerEmployeesMap = new HashMap<>();
+
+        // Retrieve all employees
+        List<Employee> allEmployees = employeeRepository.findAll();
+
+        // Populate the map with reporting managers and their employees
+        for (Employee emp : allEmployees) {
+            Long managerId = emp.getReportingManager().getId();
+            managerEmployeesMap.computeIfAbsent(managerId, k -> new ArrayList<>()).add(emp.getId());
+        }
+
+        
+        Queue<Long> queue = new LinkedList<>();
+        
+        queue.forEach(x -> System.out.println(x+" "));
+        
+        return managerEmployeesMap;
+    }
+    
+    public void rec(Map<Long, List<Long>> managerEmployeesMap, Queue<Long> queue, Long userId) {
+    	List<Long> list = managerEmployeesMap.get(userId);
+    	for(Long x: list) {
+        	queue.add(x);
+        	rec(managerEmployeesMap, queue, x);
+        }
+    }
 }
 

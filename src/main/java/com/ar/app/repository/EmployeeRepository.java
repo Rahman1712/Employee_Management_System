@@ -26,4 +26,5 @@ PagingAndSortingRepository<Employee, Long>
     @Query("UPDATE Employee e SET e.reportingManager = :reportManager WHERE e.id = :employeeId")
     void updateEmployeeReportManager(@Param("employeeId") Long employeeId, @Param("reportManager") Employee reportManager);
     
+    boolean existsByReportingManager(Employee employee);
 }
