@@ -2,6 +2,7 @@ package com.ar.app.service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -103,7 +104,7 @@ public class EmployeeService {
 		return getEmployeesMapData(pageNum, totalItems, totalPages, employees);
 	}
     
-//  Get Employee's Info (Id and Name) with Pagination -------------------------------
+//  Get Employee's Info (Id and Name) with Pagination -------------------------
 	public Map<String, Object> getAllEmployeeInfos(int pageNum) {
 		Pageable pageable = PageRequest.of(pageNum - 1, PAGE_LIMIT); 
 		Page<Employee> page = employeeRepository.findAll(pageable);
@@ -112,7 +113,7 @@ public class EmployeeService {
 		int totalPages = page.getTotalPages();
 		List<EmployeeInfo> employeeInfos = page.getContent().stream()
 				.map(AppUtils::employeeToInfo).collect(Collectors.toList());
-
+	
 		return getEmployeesMapData(pageNum, totalItems, totalPages, employeeInfos);
 	}
 	
@@ -224,38 +225,48 @@ public class EmployeeService {
         
         employeeRepository.delete(employee);
     }
-    
-    public Map<Long, List<Long>> getReportings(Long userId) {
-        // Retrieve the employee by ID
-        Employee employee = employeeRepository.findById(userId)
+ 
+//  Reporting Details of Employee -----------------------------------------
+    public Object getReportings(Long userId) {
+    	Map<String, Object> response = new LinkedHashMap<>();
+
+    	Employee employee = employeeRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + userId));
 
-        // Initialize a map to store reporting managers and their employees
-        Map<Long, List<Long>> managerEmployeesMap = new HashMap<>();
+        if(employee.getReportingManager() != null) {
+        	response.put("reporting_manager", AppUtils.employeeToInfo(employee.getReportingManager()));
+        }else {
+        	 response.put("reporting_manager", "Employee is at the top level");
+        }
+        
+        Map<Long, List<EmployeeInfo>> managerEmployeesMap = new HashMap<>();
 
-        // Retrieve all employees
         List<Employee> allEmployees = employeeRepository.findAll();
 
-        // Populate the map with reporting managers and their employees
         for (Employee emp : allEmployees) {
-            Long managerId = emp.getReportingManager().getId();
-            managerEmployeesMap.computeIfAbsent(managerId, k -> new ArrayList<>()).add(emp.getId());
+        	if(emp.getReportingManager() != null) {
+        		Long managerId = emp.getReportingManager().getId();
+        		managerEmployeesMap.computeIfAbsent(managerId, k -> new ArrayList<>())
+        		.add(AppUtils.employeeToInfo(emp));
+        	}
         }
-
         
-        Queue<Long> queue = new LinkedList<>();
+        Queue<EmployeeInfo> queue = new LinkedList<>();
         
-        queue.forEach(x -> System.out.println(x+" "));
+        recurseLists(managerEmployeesMap, queue, managerEmployeesMap.get(userId));
         
-        return managerEmployeesMap;
+        response.put("reporting_chain", queue);
+        
+        return response;
     }
     
-    public void rec(Map<Long, List<Long>> managerEmployeesMap, Queue<Long> queue, Long userId) {
-    	List<Long> list = managerEmployeesMap.get(userId);
-    	for(Long x: list) {
-        	queue.add(x);
-        	rec(managerEmployeesMap, queue, x);
-        }
+    public void recurseLists(Map<Long, List<EmployeeInfo>> managerEmployeesMap, Queue<EmployeeInfo> queue, List<EmployeeInfo> list) {
+    	if(list != null) {
+    		for(EmployeeInfo e: list) {
+    			queue.add(e);
+    			recurseLists(managerEmployeesMap, queue, managerEmployeesMap.get(e.getId()));
+    		}
+    	}
     }
 }
 
