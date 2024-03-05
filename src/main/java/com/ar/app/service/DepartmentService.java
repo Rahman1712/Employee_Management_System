@@ -102,6 +102,91 @@ public class DepartmentService {
 		}
 	}
 	
+//  Get Department With Employees Expand -----------------------------------------
+	public Map<String, Object> getDepartmentWithEmployees(String expand, Long id) {
+    	Department department = departmentRepository.findById(id)
+    			.orElseThrow(() -> new DepartmentException(
+                		"Department not Found with ID: " + id,
+                		HttpStatus.NOT_FOUND));
+
+    	Map<String, Object> map = new HashMap<>();
+    	
+    	map.put("id", department.getId());
+    	map.put("name", department.getName());
+    	map.put("creationDate", department.getCreationDate());
+    	map.put("departmentHead",
+    			department.getDepartmentHead() != null ? 
+    					AppUtils.employeeToInfo(department.getDepartmentHead()) : 
+    						null);
+    	
+		if(expand != null && expand.equals("employee")) {
+			List<EmployeeInfo> employees = department.getEmployees()
+					.stream()
+					.map(AppUtils::employeeToInfo)
+					.collect(Collectors.toList());
+
+			map.put("employees", employees);
+		}
+		
+		return map;
+	}
+
+//  Get Departments With Expanded  -----------------------------------------
+	public Map<String, Object> getDepartmentsWithExpand(String expand, boolean paginate, int pageNum) {
+
+		Map<String, Object> responseMap = new HashMap<>();
+		List<Department> departments = null;
+		
+		if(paginate) {
+			Pageable pageable = PageRequest.of(pageNum - 1, PAGE_LIMIT); 
+			Page<Department> page = departmentRepository.findAll(pageable);
+			long totalItems = page.getTotalElements();
+			int totalPages = page.getTotalPages();
+			departments = page.getContent();
+			
+			responseMap.put("pageNum", pageNum);
+			responseMap.put("totalItems", totalItems);
+			responseMap.put("totalPages", totalPages);
+			
+		}else {
+			departments = departmentRepository.findAll();
+		}
+		
+		if(expand != null && expand.equals("employee")) {
+			var departmentsExpanded = departments.stream().map(dept -> getDepartmentData(dept)).collect(Collectors.toList());
+			
+			responseMap.put("departments", departmentsExpanded);
+		}else {
+			List<DepartmentDTO> departmentsDto = departments.stream()
+					.map(AppUtils::departmentToDto).collect(Collectors.toList());
+			
+			responseMap.put("departments", departmentsDto);
+		}
+		
+		return responseMap;
+	}
+	
+//	Get Department Data  ---------   
+	private Map<String, Object> getDepartmentData(Department department){
+		
+		List<EmployeeInfo> employees = department.getEmployees()
+				.stream()
+				.map(AppUtils::employeeToInfo)
+				.collect(Collectors.toList());
+		
+		Map<String, Object> map = new HashMap<>();
+		map.put("id", department.getId());
+		map.put("name", department.getName());
+		map.put("creationDate", department.getCreationDate());
+		map.put("departmentHead",
+				department.getDepartmentHead() != null ? 
+					AppUtils.employeeToInfo(department.getDepartmentHead()) : 
+						null);
+		map.put("employees", employees);
+		
+		return map;
+	}
+	
 //  Create Department -----------------------------------------
     public DepartmentDTO createDepartment(DepartmentRequest departmentRequest) {
         

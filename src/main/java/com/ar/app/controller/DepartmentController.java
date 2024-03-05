@@ -36,6 +36,25 @@ public class DepartmentController {
     	return ResponseEntity.status(HttpStatus.CREATED).body(createdDepartment);
     }
     
+    @GetMapping
+    public ResponseEntity<Map<String, Object>>  getDepartmentsExpand(
+    		@RequestParam(required = false) String expand,
+    		@RequestParam(required = false, defaultValue = "false") boolean paginate,
+    		@RequestParam(defaultValue = "1") int pageNum,
+    		@RequestParam(required = false) Long id
+    		) {
+    	
+    	Map<String, Object> departmentMap = null;
+    	
+    	if(id == null) {
+    		departmentMap = departmentService.getDepartmentsWithExpand(expand, paginate, pageNum);
+    	}else {
+    		departmentMap = departmentService.getDepartmentWithEmployees(expand, id);
+    	}
+    	
+    	return ResponseEntity.ok(departmentMap);
+    }
+    
     @GetMapping("/{id}")
     public ResponseEntity<DepartmentDTO>  getDepartmentById(@PathVariable Long id) {
     	DepartmentDTO departmentDTO = departmentService.getDepartmentById(id);
